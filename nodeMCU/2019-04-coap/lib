@@ -1,0 +1,4 @@
+
+You successfully commissioned a NodeMCU custom build from the master branch. You selected the following 17 modules: adc bit coap file gpio http i2c mqtt net node pwm rtctime spi tmr uart websocket wifi.
+
+
