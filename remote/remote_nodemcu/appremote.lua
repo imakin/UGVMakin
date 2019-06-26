@@ -1,9 +1,9 @@
-led = 0
+led = 4
 
 bt_right = 5
 bt_left = 6
 bt_forward = 7
-bt_backward = 4
+bt_backward = 3
 
 _G.udpsocket = 0
 
@@ -23,6 +23,15 @@ stop_checking_button = false
 ssid = {}
 
 _G.check_button = function()
+    _G.udpsocket = net.createUDPSocket()
+    broadcast_ip = wifi.sta.getbroadcast()
+    _G.udpsocket:on("receive", function(s,d,p,i)
+        if d=="ack" then
+            gpio.write(led, 0)
+        end
+        print(d)
+    end)
+    _G.udpsocket:send(car_net_port, broadcast_ip, "test")
     while true do
         if (gpio.read(bt_right)==0) then
             current_steer = steer_center + 20
@@ -48,38 +57,37 @@ _G.check_button = function()
         end
         data = data + current_steer
         
-        --~ if not (data==last_data) then
-            _G.udpsocket:send(car_net_port, car_net_ip, tostring(data))
+        if not (data==last_data) then
+            _G.udpsocket:send(car_net_port, broadcast_ip, tostring(data))
             print("sending " .. tostring(data))
             last_data = data
             _G.data = data
-        --~ end
+        end
         if stop_checking_button then break end
         tmr.delay(500)
     end
 end
 _G.wifi_connected_cb = function(ssid, bssid, channel)
     print("nyambung")
-    --~ gpio.write(led, 1)
-    _G.udpsocket = net.createUDPSocket()
-    _G.udpsocket:listen(5001)
-    _G.udpsocket:on("receive", function(s, data, port, ip)
-        print(string.format("received '%s' from %s:%d", data, ip, port))
-        s:send(port, ip, "echo: " .. data)
-    end)
+    gpio.write(led, 1)
+    --~ _G.udpsocket:listen(5001)
+    --~ _G.udpsocket:on("receive", function(s, data, port, ip)
+        --~ print(string.format("received '%s' from %s:%d", data, ip, port))
+        --~ s:send(port, ip, "echo: " .. data)
+    --~ end)
     --~ port, ip = _G.udpSocket:getaddr()
     --~ print(string.format("local UDP socket address / port: %s:%d", ip, port))
     stop_checking_button = false
     --~ _G.check_button()
 end
 _G.initremote = function()
-    --~ gpio.mode(led,          gpio.OUTPUT)
+    gpio.mode(led,          gpio.OUTPUT)
     gpio.mode(bt_right,     gpio.INPUT, gpio.PULLUP)
     gpio.mode(bt_left,      gpio.INPUT, gpio.PULLUP)
     gpio.mode(bt_forward,   gpio.INPUT, gpio.PULLUP)
     gpio.mode(bt_backward,  gpio.INPUT, gpio.PULLUP)
     
-    --~ gpio.write(led, 0)
+    gpio.write(led, 0)
     wifi.setmode(wifi.STATION)
     --~ wifi.setphymode(wifi.PHYMODE_B)
     ssid = {}
@@ -87,7 +95,7 @@ _G.initremote = function()
     ssid.pwd = "astaughfirullah"
     ssid.auto = false
     ssid.save = false
-    ssid.disconnected_cb = function(ssid,bssid,channel)
+    ssid.stadisconnected_cb = function(ssid,bssid,channel)
         print("disconnected")
         stop_checking_button = true
     end
