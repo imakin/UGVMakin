@@ -6,7 +6,7 @@ driverIN3 = 3
 driverIN4 = 4
 
 steeringpwm = 6
-STEER_CENTER = 75
+STEER_CENTER = 82
 current_steer = STEER_CENTER
 
 cs = "coapserver"
