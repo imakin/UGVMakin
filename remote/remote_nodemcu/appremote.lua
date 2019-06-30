@@ -19,8 +19,8 @@ current_speed = default_speed
 _G.timer_last_forward = 0
 _G.timer_last_speed_changed = 0
 
-direction_adjust_delay_ms = 1000 -- time to trigger adjust dir
-direction_adjust_duration_ms = 1000 -- duration of adjust dir 
+direction_adjust_right_delay_ms = 600 -- time to trigger adjust dir
+direction_adjust_left_delay_ms = 700 -- duration of adjust dir 
 
 
   -- 0b 11111111 1111
@@ -33,17 +33,17 @@ ssid = {}
 
 direction_adjust_timer = tmr.create()
 direction_adjust_timer:register(
-    direction_adjust_delay_ms,
+    direction_adjust_right_delay_ms,
     tmr.ALARM_AUTO,
     function (timerobj)
-        if gpio.read(bt_forward)==0 and gpio.read(bt_right)==1 and gpio.read(bt_left)==1 then
+        if (gpio.read(bt_forward)==0 or gpio.read(bt_backward)==0) and gpio.read(bt_right)==1 and gpio.read(bt_left)==1 then
             data = 0
             if steer_center==81 then
                 steer_center = 83
-                timerobj:interval(direction_adjust_duration_ms)
+                timerobj:interval(direction_adjust_left_delay_ms)
             else
                 steer_center = 81
-                timerobj:interval(direction_adjust_delay_ms)
+                timerobj:interval(direction_adjust_right_delay_ms)
             end
             
             --~ if (current_steer==1296) then -- equal to 81 << 4
@@ -66,9 +66,16 @@ direction_adjust_timer:register(
 )
 
 
-_G.check_button = function()
-    _G.udpsocket = net.createUDPSocket()
+_G.check_button = function(starterobject)
     broadcast_ip = wifi.sta.getbroadcast()
+    if not(broadcast_ip) then
+        print("broadcast ip fetch not ready, retrying")
+        starterobject:start()
+        return
+    else
+        starterobject:unregister()
+    end
+    _G.udpsocket = net.createUDPSocket()
     _G.udpsocket:on("receive", function(s,d,p,i)
         if d=="ack" then
             gpio.write(led, 0)
@@ -137,8 +144,17 @@ _G.check_button = function()
             end
             _G.timer_last_forward = tmr.now()
         elseif (gpio.read(bt_backward)==0) then
-            data = 6 -- 0b0110
-            direction_adjust_timer:stop()
+            
+            if current_speed==3 then
+                data = 4 --0b100
+            elseif current_speed==2 then
+                data = 5 --0b101
+            elseif current_speed==1 then -- from speed 0 or 1
+                data = 6 --0b110
+            else --speed = 0
+                data = 7 -- 0b111
+            end
+            direction_adjust_timer:start()
         else -- no forward / backward (stop)
             data = 15 -- 0b1111
             current_speed = default_speed
@@ -167,9 +183,7 @@ _G.wifi_connected_cb = function(ssid, bssid, channel)
     --~ print(string.format("local UDP socket address / port: %s:%d", ip, port))
     stop_checking_button = false
     starter = tmr.create()
-    starter:register(3000, tmr.ALARM_SINGLE, function()
-        check_button()
-    end)
+    starter:register(3000, tmr.ALARM_SEMI, check_button)
     starter:start()
     --~ _G.check_button()
 end
