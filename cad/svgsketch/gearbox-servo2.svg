@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   version="1.1"
+   id="svg4217"
+   viewBox="0 0 78.307081 80.078728"
+   height="22.599997mm"
+   width="22.099998mm">
+  <defs
+     id="defs4219" />
+  <metadata
+     id="metadata4222">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(-332.27504,-258.03713)"
+     id="layer1">
+    <path
+       id="rect4745"
+       transform="translate(332.27504,258.03713)"
+       d="M 12.578125 0.17773438 L 12.578125 7.2636719 L 0.17773438 7.2636719 L 0.17773438 72.814453 L 12.578125 72.814453 L 12.578125 79.902344 L 65.728516 79.902344 L 65.728516 72.814453 L 78.130859 72.814453 L 78.130859 7.2636719 L 65.728516 7.2636719 L 65.728516 0.17773438 L 12.578125 0.17773438 z M 39.154297 34.724609 A 5.3149638 5.3149638 0 0 1 44.46875 40.039062 A 5.3149638 5.3149638 0 0 1 39.154297 45.353516 A 5.3149638 5.3149638 0 0 1 33.837891 40.039062 A 5.3149638 5.3149638 0 0 1 39.154297 34.724609 z M 17.007812 38.267578 A 1.7716535 1.7716535 0 0 1 18.779297 40.039062 A 1.7716535 1.7716535 0 0 1 17.007812 41.810547 A 1.7716535 1.7716535 0 0 1 15.236328 40.039062 A 1.7716535 1.7716535 0 0 1 17.007812 38.267578 z M 61.298828 38.267578 A 1.7716535 1.7716535 0 0 1 63.070312 40.039062 A 1.7716535 1.7716535 0 0 1 61.298828 41.810547 A 1.7716535 1.7716535 0 0 1 59.527344 40.039062 A 1.7716535 1.7716535 0 0 1 61.298828 38.267578 z "
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35433072;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:9.05000019;stroke-dasharray:none;stroke-opacity:1" />
+  </g>
+</svg>
