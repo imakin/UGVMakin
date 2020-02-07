@@ -16,7 +16,7 @@ car_net_ip = "192.168.4.1"
 car_net_port = 5000
 
 --~ steer_center = 80
-steer_center = 79
+steer_center = 84
 current_steer = steer_center
 current_direction = 1
 default_speed = 0
@@ -28,8 +28,8 @@ _G.timer_last_speed_changed = 0
 
 direction_adjust_right_delay_ms = 250 -- time to trigger adjust dir
 direction_adjust_left_delay_ms = 260 -- duration of adjust dir
-direction_adjust_right_steer = 79
-direction_adjust_left_steer = 79
+direction_adjust_right_steer = 84
+direction_adjust_left_steer = 84
 
   -- 0b 11111111 1111
   -- least significant 4 bit: gpio of relay: bit 3 to 0: IN4 IN3 IN2 IN1
@@ -121,13 +121,13 @@ _G.check_button = function(starterobject)
             end
             if (gpio.read(bt_forward)==0) then
                 if current_speed==3 then
-                    current_steer = steer_center + 3
+                    current_steer = steer_center + 3 ---2WD H
                 elseif current_speed==2 then
-                    current_steer = steer_center + 5
+                    current_steer = steer_center + 15 --- 2WD L
                 elseif current_speed==1 then
-                    current_steer = steer_center + 10
+                    current_steer = steer_center + 15 ---4WD H
                 else
-                    current_steer = steer_center + 15
+                    current_steer = steer_center + 15 ---4WD L
                 end
             else
                 current_steer = steer_center + 15
@@ -137,9 +137,9 @@ _G.check_button = function(starterobject)
                 if current_speed==3 then
                     current_steer = steer_center - 3
                 elseif current_speed==2 then
-                    current_steer = steer_center - 5
+                    current_steer = steer_center - 15
                 elseif current_speed==1 then
-                    current_steer = steer_center - 10
+                    current_steer = steer_center - 15
                 else
                     current_steer = steer_center - 15
                 end
@@ -163,32 +163,37 @@ _G.check_button = function(starterobject)
                 end
             end
             direction_adjust_timer:start()
-
-            --~ if current_speed==3 then
-                --~ data = 8 --0b1000
-            --~ elseif current_speed==2 then
-                --~ data = 9 --0b1001
-            --~ elseif current_speed==1 then -- from speed 0 or 1
-                --~ data = 10 --0b1010
-            --~ else --speed = 0
-                --~ data = 11 -- 0b1011
-            --~ end
-            -- 4wd: no speed
-            data = 10
+            -- in ../../ (4wd) direction is 3 2, speed is 1 0
+            -- here position speed is 3 2, direction is 1 0
+            -- 3th bit is front wheel activation
+            if current_speed==3 then
+                data = 10 --1010 4WDL
+            elseif current_speed==2 then
+                data = 14 --1110 4WDH
+            elseif current_speed==1 then -- from speed 0 or 1
+                data = 2 --0010 2WDL
+            else --speed = 0
+                data = 6 --0110 2WDH
+            end
+            
+            
+            --~ -- 4wd: no speed
+            --~ data = 10
             _G.timer_last_forward = tmr.now()
         elseif (gpio.read(bt_backward)==0) then
-
-            --~ if current_speed==3 then
-                --~ data = 4 --0b100
-            --~ elseif current_speed==2 then
-                --~ data = 5 --0b101
-            --~ elseif current_speed==1 then -- from speed 0 or 1
-                --~ data = 6 --0b110
-            --~ else --speed = 0
-                --~ data = 7 -- 0b111
-            --~ end
+            -- in ../../ (4wd) direction is 3 2, speed is 1 0
+            -- here position speed is 3 2, direction is 1 0
+            if current_speed==3 then
+                data = 9 --1001
+            elseif current_speed==2 then
+                data = 13 -- 1101
+            elseif current_speed==1 then
+                data = 1 --0001
+            else --speed = 0
+                data = 5 --0101
+            end
             -- 4wd: no speed
-            data = 5
+            --~ data = 5
             direction_adjust_timer:start()
         else -- no forward / backward (stop)
             data = 15 -- 0b1111
