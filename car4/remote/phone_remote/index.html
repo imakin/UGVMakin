@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+    <head lang="en">
+        <meta charset="UTF-8">
+        <title>Free Touch Joystick for Phaser.js</title>
+        <style>
+            #phaser-joystick {
+                /* margin: 0 auto; */
+                width: 100%;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Add a canvas -->
+        <div id="phaser-joystick"></div>
+
+        <script src="phaser.min.js"></script>
+        <script src="vjoy.js"></script>
+        <script>
+            /* To make your code more maintable, add the JS code in JS files */
+            (function (Phaser) {'use strict';
+                var w = window,
+                    d = document,
+                    e = d.documentElement,
+                    g = document.body,
+                    page_width = w.innerWidth || e.clientWidth || g.clientWidth,
+                    page_height = w.innerHeight|| e.clientHeight|| g.clientHeight;
+
+                var sprite;
+
+                var GameConfig = {
+                    preload: function preload() {
+                        /**
+                         * Load the images
+                         */
+                        game.load.image('vjoy_base', 'sprite/base.png');
+                        game.load.image('vjoy_body', 'sprite/body.png');
+                        game.load.image('vjoy_cap', 'sprite/cap.png');
+                    },
+
+                    create: function create() {
+                        // Set a gray as background color
+                        game.stage.backgroundColor = '#f7f7f7';
+
+                        // sprite = game.add.sprite(300, 300, 'logo');
+
+                        game.vjoy = game.plugins.add(Phaser.Plugin.VJoy);
+                        game.vjoy.inputEnable();
+                        game.vjoy.speed = {
+                            x:500,
+                            y:500
+                        };
+                    },
+
+                    update: function update() {
+                        /**
+                         * Important to get the cursors on the update function
+                         */
+                        var cursors = game.vjoy.cursors;
+                        // console.log(cursors)
+                        // console.log(cursors.up)
+                        //
+                        // // If to left or right
+                        // if (cursors.left) {
+                        //     sprite.x--;
+                        // } else if (cursors.right) {
+                        //     sprite.x++;
+                        // }
+                        //
+                        // // If up or down
+                        // if (cursors.up) {
+                        //     sprite.y--;
+                        // } else if (cursors.down) {
+                        //     sprite.y++;
+                        // }
+                    }
+                };
+
+                // Initialize game
+                var game = new Phaser.Game(page_width, page_height, Phaser.AUTO, 'phaser-joystick', GameConfig);
+            }.call(this, Phaser));
+        </script>
+    </body>
+</html>
