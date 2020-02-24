@@ -1,0 +1,49 @@
+<html>
+    <head>
+        <style>
+        button {
+            font-size: 100px;
+            font-family: 'Oxygen Mono', Arial;
+            padding: 40px;
+        }
+        </style>
+    </head>
+    <body>
+        <script>
+        var p = 1359;
+        var steer = 84;
+        var drive = 0b1111;
+        function send() {
+            var newp = (steer<<4) + drive;
+            if (newp!=p) {
+                p = newp;
+                document.location.pathname = '/'+p;
+            }
+        }
+        function l(){
+            steer = 84+15;
+            send();
+        }
+        function r(){
+            steer = 84-15;
+            send();
+        }
+        function f(){
+            drive = 2;
+            send();
+        }
+        function b(){
+            drive = 1;
+            send();
+        }
+        </script>
+        <div>
+            <button onclick='l()'>&lt;</button>
+            <button onclick='r()'>&gt;</button>
+        <div>
+        <div>
+            <button onclick='f()'>F</button>
+            <button onclick='b()'>B</button>
+        <div>
+    </body>
+</html>
