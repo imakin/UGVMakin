@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">UgvmakinDevice</string>
+    <string name="detect_object">Detect Object</string>
+</resources>

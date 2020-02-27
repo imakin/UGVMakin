@@ -3,8 +3,12 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/UGVMakin.iml" filepath="$PROJECT_DIR$/UGVMakin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/UGVMakin-UGVMakin.iml" filepath="$PROJECT_DIR$/UGVMakin-UGVMakin.iml" />
+      <module fileurl="file://$PROJECT_DIR$/app/UGVMakin-app.iml" filepath="$PROJECT_DIR$/app/UGVMakin-app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/libs/UGVMakin-libs.iml" filepath="$PROJECT_DIR$/libs/UGVMakin-libs.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/libs/libs.iml" filepath="$PROJECT_DIR$/libs/libs.iml" />
+      <module fileurl="file://$PROJECT_DIR$/libs/usbSerialForAndroid/libs-usbSerialForAndroid.iml" filepath="$PROJECT_DIR$/libs/usbSerialForAndroid/libs-usbSerialForAndroid.iml" />
       <module fileurl="file://$PROJECT_DIR$/libs/usbSerialForAndroid/usbSerialForAndroid.iml" filepath="$PROJECT_DIR$/libs/usbSerialForAndroid/usbSerialForAndroid.iml" />
     </modules>
   </component>
