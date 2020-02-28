@@ -10,15 +10,25 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="center|top"
+        android:orientation="vertical"
         android:gravity="center"
-        android:orientation="vertical">
+        >
 
-        <com.wonderkiln.camerakit.CameraView
+        <Button
+            android:id="@+id/btnDetectObject"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_gravity="bottom|center"
+            android:text="@string/detect_object"
+            android:textAllCaps="false"
+            android:textColor="@android:color/black"
+            android:visibility="visible" />
+        <com.camerakit.CameraKitView
             android:id="@+id/cameraView"
             android:layout_width="300dp"
             android:layout_height="300dp"
-            android:layout_gravity="center|top" />
+            android:visibility="visible"
+            />
 
         <ImageView
             android:id="@+id/imageViewResult"
@@ -36,15 +46,16 @@
             android:scrollbars="vertical"
             android:textColor="@android:color/black" />
 
-        <Button
-            android:id="@+id/btnDetectObject"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_gravity="bottom|center"
-            android:text="@string/detect_object"
-            android:textAllCaps="false"
-            android:textColor="@android:color/black"
-            android:visibility="visible" />
+        <Switch
+            android:id="@+id/sw_running"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:switchPadding="50dp"
+            android:text="run"
+            android:textOn="running"
+            android:textOff="paused" />
+
+
 
     </LinearLayout>
 
