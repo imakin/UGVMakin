@@ -11,6 +11,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+//the recent library is worse than com.wonderkiln version
 import com.wonderkiln.camerakit.CameraKitError;
 import com.wonderkiln.camerakit.CameraKitEvent;
 import com.wonderkiln.camerakit.CameraKitEventListener;
@@ -25,7 +26,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     public static final String MAKIN = "makin";
-    private static final String MODEL_PATH = "road_optimized.tflite";
+    private static final String MODEL_PATH = "road.tflite";
     private static final boolean QUANT = false;
     private static final String LABEL_PATH = "road_label.txt";
     private static final int INPUT_SIZE = 224;
@@ -37,6 +38,8 @@ public class MainActivity extends AppCompatActivity {
     private Button btnDetectObject;
     private ImageView imageViewResult;
     private CameraView cameraView;
+
+    private Thread onImageThread;
 
 
 
@@ -64,17 +67,29 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onImage(CameraKitImage cameraKitImage) {
+            public void onImage(final CameraKitImage cameraKitImage) {
+                new Thread(new Runnable() {
+                    private  int max_tries = 10;
+                    public void run() {
+                        final Bitmap bitmap = Bitmap.createScaledBitmap(
+                                cameraKitImage.getBitmap(),
+                                INPUT_SIZE, INPUT_SIZE,
+                                false
+                        );
 
-                Bitmap bitmap = cameraKitImage.getBitmap();
 
-                bitmap = Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, false);
+                        final int results = classifier.isRoad(bitmap);
 
-                imageViewResult.setImageBitmap(bitmap);
-
-                int results = classifier.isRoad(bitmap);
-
-                textViewResult.setText(""+results);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                imageViewResult.setImageBitmap(bitmap);
+                                textViewResult.setText("" + results);
+                            }
+                        });
+                        cameraView.captureImage();
+                    }
+                }).run();
 
             }
 
