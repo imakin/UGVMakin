@@ -10,7 +10,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:gravity="center"
         >
 
@@ -18,43 +18,63 @@
             android:id="@+id/btnDetectObject"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:layout_gravity="bottom|center"
             android:text="@string/detect_object"
             android:textAllCaps="false"
             android:textColor="@android:color/black"
-            android:visibility="visible" />
+            android:visibility="gone" />
+
         <com.camerakit.CameraKitView
             android:id="@+id/cameraView"
             android:layout_width="300dp"
             android:layout_height="300dp"
             android:visibility="visible"
-            />
+            app:camera_aspectRatio="1" />
 
-        <ImageView
-            android:id="@+id/imageViewResult"
-            android:layout_width="75dp"
-            android:layout_height="75dp"
-            android:padding="2dp" />
-
-        <TextView
-            android:id="@+id/textViewResult"
-            android:layout_width="match_parent"
-            android:layout_height="80dp"
-            android:fadeScrollbars="false"
-            android:gravity="center"
-            android:maxLines="15"
-            android:scrollbars="vertical"
-            android:textColor="@android:color/black" />
-
-        <Switch
-            android:id="@+id/sw_running"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:switchPadding="50dp"
-            android:text="run"
-            android:textOn="running"
-            android:textOff="paused" />
+            android:orientation="vertical">
 
+            <Switch
+                android:id="@+id/sw_running"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:switchPadding="50dp"
+                android:text="run"
+                android:textOff="paused"
+                android:textOn="running" />
+            <Switch
+                android:id="@+id/sw_flash"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:switchPadding="50dp"
+                android:text="flash"/>
+
+            <Switch
+                android:id="@+id/sw_save"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="save img" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/imageViewResult"
+                android:layout_width="75dp"
+                android:layout_height="75dp"
+                android:padding="2dp" />
+
+            <TextView
+                android:id="@+id/textViewResult"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/black" />
+        </LinearLayout>
 
 
     </LinearLayout>
