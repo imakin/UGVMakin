@@ -167,13 +167,13 @@ _G.check_button = function(starterobject)
             -- here position speed is 3 2, direction is 1 0
             -- 3th bit is front wheel activation
             if current_speed==3 then
-                data = 10 --1010 4WDL
+                data = 10 --1010 2WDH
             elseif current_speed==2 then
-                data = 14 --1110 4WDH
+                data = 14 --1110 2WDL
             elseif current_speed==1 then -- from speed 0 or 1
-                data = 2 --0010 2WDL
+                data = 2 --0010 4WDH
             else --speed = 0
-                data = 6 --0110 2WDH
+                data = 6 --0110 4WDL
             end
             
             

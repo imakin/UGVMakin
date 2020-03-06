@@ -36,11 +36,17 @@ public class RoadClassifier {
 
     private Interpreter interpreter;
     private int inputSize;
-    private List<String> labelList;
+    public List<String> labelList;
     private boolean quant;
 
     private static final int ROAD_LABEL_POS = 1;//position of road in label list
     private static final int OBSTACLE_LABEL_POS = 0;//position of obstacle in label list
+
+    public static final int FORWARD_LABEL_POS = 0;//just like labelList indexing, position in label list (MainActivity.USE_TURN == true), hardcoded for performance
+    public static final int LEFT_LABEL_POS = 1;
+    public static final int RIGHT_LABEL_POS = 2;
+    public static final int STOP_LABEL_POS = 3;
+
     private int[] intValues;
 
     private RoadClassifier() {
@@ -97,18 +103,51 @@ public class RoadClassifier {
             }
         }
     }
+
+    public byte isRoadTurn(Bitmap bitmap) {
+        long start = elapsedRealtime();
+        ByteBuffer byteBuffer = convertBitmapToByteBuffer(bitmap);
+        Log.v("MAKIN", "convert lama: "+(elapsedRealtime()-start));
+        if(quant){
+            byte[][] result = new byte[1][labelList.size()];
+            interpreter.run(byteBuffer, result);
+            Log.v("MAKIN", "model data length: "+result[0].length);
+            return (byte)findMaxByte(result[0]);
+        } else {
+            float [][] result = new float[1][labelList.size()];
+            start = elapsedRealtime();
+            interpreter.run(byteBuffer, result);
+            Log.v("MAKIN", "interpret lama: "+(elapsedRealtime()-start));
+            Log.v("MAKIN", "model data length: "+result[0].length);
+//            Log.v("MAKIN", "contoh data r[1][0]: "+result[1][0]);
+            Log.v("MAKIN", "Hasil: "+labelList.get((byte)findMaxFloat(result[0])));
+            return (byte)findMaxFloat(result[0]);
+        }
+    }
+
+    //return string of binary values of the classification
+    // example 0110 means input being classified as 1st category results in not confident, 2nd in confident, 3rd in confident, 4th not confident
     public String classify(Bitmap bitmap) {
         ByteBuffer byteBuffer = convertBitmapToByteBuffer(bitmap);
         if(quant){
             byte[][] result = new byte[1][labelList.size()];
             interpreter.run(byteBuffer, result);
 //            Log.v("MAKIN", "model data length: "+result[0].length);
-            return "0:"+result[0][0]+", 1:"+result[0][1];
+            String res = "";
+            for (int i=0;i<result[0].length;i++) {
+                res += ((int)Math.round(result[0][i]));
+            }
+            return res;
         } else {
             float [][] result = new float[1][labelList.size()];
             interpreter.run(byteBuffer, result);
 //            Log.v("MAKIN", "model data length: "+result[0].length);
-            return "0:"+Math.round(100*(result[0][0]))+", 1:"+Math.round(100*(result[0][1]));
+//            return "0:"+Math.round(100*(result[0][0]))+", 1:"+Math.round(100*(result[0][1]));
+            String res = "";
+            for (int i=0;i<result[0].length;i++) {
+                res += ((int)Math.round(result[0][i]));
+            }
+            return res;
         }
     }
 
@@ -134,6 +173,9 @@ public class RoadClassifier {
             labelList.add(line);
         }
         reader.close();
+        for (int i=0;i<labelList.size();i++) {
+            Log.v("MAKIN","Label i:"+i+": "+labelList.get(i));
+        }
         return labelList;
     }
 
@@ -160,5 +202,48 @@ public class RoadClassifier {
         return byteBuffer;
     }
 
+
+    // get max byte, return the index
+    public int findMaxByte(byte[] bytes) {
+        int index = 3;
+        try {
+            byte max = bytes[0];
+            for (int i = 0; i < bytes.length; i++) {
+                if (bytes[i]>max) {
+                    max = bytes[i];
+                    index = i;
+                }
+            }
+        } catch (ArrayIndexOutOfBoundsException e) {
+            Log.w("MAKIN", "maxByte(bytes) bytes length is zero, returning zero");
+        }
+        finally {
+            return index;
+        }
+    }
+    // get max float, return the index
+    public int findMaxFloat(float[] floats) {
+        int index = 3;
+        try {
+            float max = floats[0];
+            for (int i = 0; i < floats.length; i++) {
+                if (floats[i]>max) {
+                    max = floats[i];
+                    index = i;
+                }
+                Log.v("MAXBYTE", "current i: "+i+" val: "+floats[i]);
+            }
+        } catch (ArrayIndexOutOfBoundsException e) {
+            Log.w("MAKIN", "maxByte(bytes) bytes length is zero, returning zero");
+        }
+        finally {
+            return index;
+        }
+    }
+
+
+//    public byte makinRoadDetection(Bitmap input) {
+//
+//    }
 }
 

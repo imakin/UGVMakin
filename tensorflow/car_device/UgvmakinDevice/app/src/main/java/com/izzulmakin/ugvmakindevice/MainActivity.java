@@ -39,18 +39,22 @@ public class MainActivity extends AppCompatActivity
 implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickListener
 {
     public static final String MAKIN = "makin";
-    private static final String MODEL_PATH = "road_optimized_128.tflite";
+    private static final String MODEL_PATH = "leftright.tflite";
     private static final boolean QUANT = false;
-    private static final String LABEL_PATH = "road_label.txt";
+    private static final String LABEL_PATH = "leftright_labels.txt";
     private static final int INPUT_SIZE = 128;
 
+    private static final boolean USE_TURN = true; //determine left/right turn from pic, if false, determine only from segmentation
+
     private RoadClassifier classifier;
+    private SensorListener sensorListener;
 
     private Executor executor = Executors.newSingleThreadExecutor();
     private TextView textViewResult;
     private Button btnDetectObject;
     private ImageView imageViewResult;
     private CameraKitView cameraView;
+    private TextView tv_orientation;
 
     private static boolean is_running = false;
     private Bitmap segmentedBitmap = null; //croppedBitmap might be cropped again, into 9 segments
@@ -61,8 +65,10 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
 
     private byte[] road;    //containing the segmented frame, values if road or not.
                             // 2 dimension [recognizeSequenceSegmentation_column,recognizeSequenceSegmentation_row] stored in 1 dimension
-
+    private String[] road_label;    //road, but in labels string,
+                                    // each element could be Forward, Left, Right, Stop or Obstacle, Road depends on USE_TURN
     private boolean saveimg = false;
+    private String saveimg_id;
 
     private CarDriver car;
 
@@ -71,6 +77,7 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        sensorListener = new SensorListener(this);
         car = new CarDriver(this);
         cameraView = findViewById(R.id.cameraView);
         cameraView.setImageMegaPixels(0.4f);
@@ -80,6 +87,7 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
         textViewResult = findViewById(R.id.textViewResult);
         textViewResult.setMovementMethod(new ScrollingMovementMethod());
         btnDetectObject = findViewById(R.id.btnDetectObject);
+        tv_orientation = findViewById(R.id.tv_orientation);
 
         ((Switch)findViewById(R.id.sw_running)).setOnCheckedChangeListener(this);
         ((Switch)findViewById(R.id.sw_flash)).setOnCheckedChangeListener(this);
@@ -90,41 +98,62 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
         initTensorFlowAndLoadModel();
         segmentedBitmap = Bitmap.createBitmap(INPUT_SIZE, INPUT_SIZE, Bitmap.Config.ARGB_8888);
         road = new byte[recognizeSequenceSegmentation_column * recognizeSequenceSegmentation_row];
+        road_label = new String[recognizeSequenceSegmentation_column * recognizeSequenceSegmentation_row];
     }
 
     @Override
     public void onImage(CameraKitView cameraKitView, final byte[] capturedImage) {
         // capturedImage contains the image from the CameraKitView.
         Bitmap scaledBitmap = BitmapFactory.decodeByteArray(capturedImage, 0, capturedImage.length);
-//        final int bw = bitmap.getWidth();
-//        final int bh = bitmap.getHeight();
-//
-//        //scale it
-//        int reqH = INPUT_SIZE*recognizeSequenceSegmentation_row;
-//        int reqW = INPUT_SIZE*recognizeSequenceSegmentation_column;
-//        if (bw>bh) {
-//            reqW = Math.round(reqH*bw/bh); //slightly increase reqW so reqH can be fulfilled
-//        }
-//        else {
-//            reqH = Math.round(reqW*bh/bw); //slightly increase reqH so reqW can be fulfilled
-//        }
-//        Matrix matrix = new Matrix();
-//        matrix .setRectToRect(new RectF(0, 0, bitmap.getWidth(), bitmap.getHeight()), new RectF(0, 0, reqW, reqH), Matrix.ScaleToFit.CENTER);
-//        final Bitmap scaledBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+/*      final int bw = bitmap.getWidth();
+        final int bh = bitmap.getHeight();
 
+        //scale it
+        int reqH = INPUT_SIZE*recognizeSequenceSegmentation_row;
+        int reqW = INPUT_SIZE*recognizeSequenceSegmentation_column;
+        if (bw>bh) {
+            reqW = Math.round(reqH*bw/bh); //slightly increase reqW so reqH can be fulfilled
+        }
+        else {
+            reqH = Math.round(reqW*bh/bw); //slightly increase reqH so reqW can be fulfilled
+        }
+        Matrix matrix = new Matrix();
+        matrix .setRectToRect(new RectF(0, 0, bitmap.getWidth(), bitmap.getHeight()), new RectF(0, 0, reqW, reqH), Matrix.ScaleToFit.CENTER);
+        final Bitmap scaledBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+*/
         //clear road
         for (int i = 0; i < road.length; i++) {
+            if (USE_TURN) {
+                road[i] = RoadClassifier.STOP_LABEL_POS;
+            }
             road[i] = 0;
+            road_label[i] = "Stop";
         }
         // 012
         // 345
         // 5x2:
         // 01234
         // 56789
-        byte[] optimized_seq = {2, 7, 6, 8, 5, 9};
-        for (int i=0;i<optimized_seq.length;i++) {
+        boolean savebitmap = saveimg;
+        if (savebitmap) {
+            String new_saveimg_id = "" + elapsedRealtime() / 5000;//per 5k, once every 5sec
+            if (saveimg_id == new_saveimg_id) {
+                savebitmap = false;
+            }
+            else {
+                saveimg_id = new_saveimg_id;
+            }
+        }
+        if (savebitmap) {
+            saveBitmap(
+                    scaledBitmap,
+                    Environment.getExternalStorageDirectory() + "/makin/ugvtraining/ugvmakin_" + saveimg_id + "_FRAME.png"
+            );
+        }
+        byte[] optimized_seq = {2, 7, 6, 8, 5, 9, 0, 1, 3, 4};
+        for (byte b : optimized_seq) {
             long s = elapsedRealtime();
-            recognizeSequence = optimized_seq[i];
+            recognizeSequence = b;
             //crop it per segment, one sequence one segment
             final int cbw = scaledBitmap.getWidth();
             final int cbh = scaledBitmap.getHeight();
@@ -132,7 +161,7 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
             int left_offset = 0;
             int top_offset = 0;
             left_offset = Math.round((cbw - (INPUT_SIZE * recognizeSequenceSegmentation_column)) / 2); //to crop exess width, take center
-            top_offset = -45+Math.round((cbh - (INPUT_SIZE * recognizeSequenceSegmentation_row))); //to crop exess width, don't center it but bottom-first
+            top_offset = -45 + Math.round((cbh - (INPUT_SIZE * recognizeSequenceSegmentation_row))); //to crop exess height, don't center it but bottom-first
             //hardcoded 45: the height of Car Front captured in frame
 
             final int left = left_offset + INPUT_SIZE * (recognizeSequence % recognizeSequenceSegmentation_column);
@@ -145,23 +174,48 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
             );
 
 
-            if (saveimg) {
-                saveBitmap(segmentedBitmap, Environment.getExternalStorageDirectory()+"/makin/ugvtraining/ugvmakin_"+(elapsedRealtime()/10000)+"_"+recognizeSequence+".jpg");//per 10k, once every 10sec
+            if (savebitmap) {
+                saveBitmap(
+                        segmentedBitmap,
+                        Environment.getExternalStorageDirectory() + "/makin/ugvtraining/ugvmakin_" + saveimg_id + "_" + recognizeSequence + ".png"
+                );
             }
 
             Log.v(MAKIN, "segmentedBitmap sizes: " + segmentedBitmap.getWidth() + ":" + segmentedBitmap.getHeight());
             final int sbw = segmentedBitmap.getWidth();
             final int sbh = segmentedBitmap.getHeight();
-            Log.v(MAKIN, "Bitmap preparation: "+(elapsedRealtime()-s));
-            final byte results = classifier.isRoad(segmentedBitmap);
-            road[recognizeSequence] = results;
-            if (
-                (recognizeSequence==2 && results==1)
-                || (recognizeSequence==6 && results==1)
-                || (recognizeSequence==8 && results==1)
-                || (recognizeSequence==5 && results==1)
+            Log.v(MAKIN, "Bitmap preparation: " + (elapsedRealtime() - s));
+            byte result;
+            if (USE_TURN) {
+                //try to detect best possible turn for each frame
+                result = classifier.isRoadTurn(segmentedBitmap);
+            } else {
+                //detect only obstacle/road, determine turn from the segment/sequence
+                result = classifier.isRoad(segmentedBitmap);
+            }
+            road[recognizeSequence] = result;
+            road_label[recognizeSequence] = classifier.labelList.get(result);
+            // 5x2:
+            // 01234
+            // 56789
+            if (USE_TURN) {
+                if (
+                        (recognizeSequence == 7 && !road_label[recognizeSequence].equals("Stop")) ||
+                        (recognizeSequence == 2 && !road_label[recognizeSequence].equals("Stop")) ||
+                        (recognizeSequence == 6 && !road_label[recognizeSequence].equals("Stop")) ||
+                        (recognizeSequence == 8 && !road_label[recognizeSequence].equals("Stop")) ||
+                        (recognizeSequence == 5 && !road_label[recognizeSequence].equals("Stop")) ||
+                        (recognizeSequence == 9 && !road_label[recognizeSequence].equals("Stop"))
+                ) {
+                    break;
+                }
+            }
+            else if (
+                    (recognizeSequence == 2 && result > 0)
+                    || (recognizeSequence == 6 && result > 0)
+                    || (recognizeSequence == 8 && result > 0)
+                    || (recognizeSequence == 5 && result > 0)
             ) {
-
                 break;// if far forward or either left/right possible, don't check the other
             }
         }
@@ -178,30 +232,103 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
         final int turn_forward = road[2]+road[7];
         final int turn_right = road[3]+road[4]+road[8]+road[9];
 
+        boolean speed = false;
+        if (sensorListener.orientation[2] < -1.7) {
+            speed = true;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (tv_orientation.getText() != "steep hill more power")
+                        tv_orientation.setText("steep hill more power");
+                }
+            });
+        }
+        else {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (tv_orientation.getText()!="flat land normal power")
+                        tv_orientation.setText("flat land normal power");
+                }
+            });
+        }
+
         // 01234
         // 56789
-        if (road_string=="00000\n00110") {
-            car.turnRight(15);
-            car.moveStep(400);
+        if (USE_TURN) {
+            //hardcoded
+            for (int i=0;i<1;i++) {//once looped loop, so that it can break;
+                String turn = "Stop";
+                if (!road_label[2].equals("Stop")) {
+                    turn = road_label[2];
+                }
+                if (!road_label[7].equals("Stop")) {
+                    turn = road_label[7];
+                }
+                if (!turn.equals("Stop")) {
+                    if (turn.equals("Left")) {
+                        car.turnLeft(10);
+                        car.moveStep(500, speed);
+                    }
+                    else if (turn.equals("Right")) {
+                        car.turnRight(10);
+                        car.moveStep(500, speed);
+                    }
+                    else {
+                        car.turnCenter();
+                        car.moveStep(600, speed);
+                    }
+                    break;
+                }
+
+                if (
+                    !road_label[0].equals("Stop") ||
+                    !road_label[1].equals("Stop") ||
+                    !road_label[5].equals("Stop") ||
+                    !road_label[6].equals("Stop")
+                ) {
+                    car.turnLeft(15);
+                    car.moveStep(400, speed);
+                    break;
+                }
+
+                if (
+                        !road_label[3].equals("Stop") ||
+                        !road_label[4].equals("Stop") ||
+                        !road_label[8].equals("Stop") ||
+                        !road_label[9].equals("Stop")
+                ) {
+                    car.turnRight(15);
+                    car.moveStep(400, speed);
+                    break;
+                }
+                car.stop();
+                car.send();
+            }
         }
-        else if (road_string=="00000\n01100") {
-            car.turnLeft(15);
-            car.moveStep(400);
-        }
-        else if (turn_forward >= turn_left && turn_forward >= turn_right && turn_forward > 0) {
-            car.turnCenter();
-            car.moveStep(600);
-        } else if (turn_left > turn_right) {
-            car.turnLeft(15);
-            car.moveStep(400);
-        } else if (turn_right > turn_left) {
-            car.turnRight(15);
-            car.moveStep(400);
-        } else if (road_string=="00000\n01010") {
-            car.turnCenter();
-            car.moveStep(600);
-        } else {
-            car.stop();
+        else {
+            if (road_string.equals("00000\n00110")) {
+                car.turnRight(15);
+                car.moveStep(400, speed);
+            } else if (road_string.equals("00000\n01100")) {
+                car.turnLeft(15);
+                car.moveStep(400, speed);
+            } else if (turn_forward >= turn_left && turn_forward >= turn_right && turn_forward > 0) {
+                car.turnCenter();
+                car.moveStep(600, speed);
+            } else if (turn_left > turn_right) {
+                car.turnLeft(15);
+                car.moveStep(400, speed);
+            } else if (turn_right > turn_left) {
+                car.turnRight(15);
+                car.moveStep(400, speed);
+            } else if (road_string.equals("00000\n01010")) {
+                car.turnCenter();
+                car.moveStep(600, speed);
+            } else {
+                car.stop();
+                car.send();
+            }
         }
 
         final String road_string_final = road_string;
@@ -210,31 +337,15 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
             public void run() {
                 imageViewResult.setImageBitmap(segmentedBitmap);
                 textViewResult.setText(
-                        "" +
-                        //                        results +
-                        //                        "\nbitmapSize: "+
-                        //                        bw+":"+bh +
-                        //                        "\nscaledBitmapSize: "+
-                        //                        cbw+":"+cbh +
-                        //                        "\nsegmentedBitmap sizes: "+
-                        //                        sbw+":"+sbh +
-                        //                        "\nrecognize seq: "+
-                        //                        recognizeSequence+
-                        //                        "\nsegment left,top:"+
-                        //                        left+","+top+
-                        "forward: "+turn_forward+
-                        "\nleft: "+turn_left+
-                        "\nright: "+turn_right+
-                        "\nROAD:\n" +
-                        road_string_final
+                    "forward: "+turn_forward+
+                    "\nleft: "+turn_left+
+                    "\nright: "+turn_right+
+                    "\nROAD:\n" +
+                    road_string_final
                 );
             }
         });
 
-//        recognizeSequence += 1;
-//        if (recognizeSequence >= recognizeSequenceLimit) {
-//            recognizeSequence = 3;
-//        }
         if (this.is_running) {
             cameraView.captureImage(this);//loop
         }
@@ -257,11 +368,13 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
     protected void onResume() {
         super.onResume();
         cameraView.onResume();
+        sensorListener.onResume();
     }
 
     @Override
     protected void onPause() {
         cameraView.onPause();
+        sensorListener.onPause();
         super.onPause();
     }
 
@@ -359,5 +472,15 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
                 e.printStackTrace();
             }
         }
+    }
+
+    public void showOrientation(final float val) {
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                tv_orientation.setText(""+val);
+            }
+        });
     }
 }

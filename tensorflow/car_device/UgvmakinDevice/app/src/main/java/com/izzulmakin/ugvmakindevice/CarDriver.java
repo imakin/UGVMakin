@@ -126,10 +126,14 @@ public class CarDriver {
     public void moveStep(){
         moveStep(500);
     }
-    //move forward, wait length milisecond, then stop
-    public void moveStep(int length) {
 
-        this.setSpeed(false);
+    public void moveStep(int length) {
+        moveStep(length, false);
+    }
+    //move forward, wait length milisecond, then stop
+    public void moveStep(int length, boolean speed) {
+
+        this.setSpeed(speed);
         this.setWheel(true);
         this.forward();
         Log.v("MAKIN", "movestep");
@@ -139,7 +143,6 @@ public class CarDriver {
         new android.os.Handler().postDelayed(
                 new Runnable() {
                     public void run() {
-                        Log.i("tag", "This'll run 300 milliseconds later");
                         self.stop();
                         self.send();
                     }
