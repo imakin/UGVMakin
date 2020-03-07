@@ -16,6 +16,10 @@ print('data_organizer.py training_dir output_dir')
 
 categories = ['forward', 'left', 'right', 'stop']
 
+import re
+from datetime import datetime
+def gettimestamp():
+    return re.sub(r'[\-\:T\.]', '_', datetime.now().isoformat())
 
 class DATA(object):
     DIR = argv[1]
@@ -33,9 +37,10 @@ def pad(n,length=3):
 existing_files = 0
 for cat in categories:
     existing_files += len(os.listdir(os.path.join(DATA.OUTPUT_DIR, cat)))
+print(f'existing files {existing_files}')
 
 files = [os.path.join(DATA.DIR, f) for f in os.listdir(DATA.DIR) if f.endswith('png') or f.endswith('jpg')]
-file_i = existing_files
+file_i = 0
 app = tk.Tk()
 
 img = ImageTk.PhotoImage(Image.open(files[file_i]))
@@ -51,15 +56,15 @@ def next_file():
     panel.configure(image=img2)
     panel.image = img2#hold from garbagec
 
-def set_road():
-    global file_i
-    shutil.copy(files[file_i], os.path.join(DATA.DIR_ROAD, f'ripe_{pad(file_i)}.jpg'))
-    next_file()
+# ~ def set_road():
+    # ~ global file_i
+    # ~ shutil.copy(files[file_i], os.path.join(DATA.DIR_ROAD, f'ripe_{pad(file_i)}.jpg'))
+    # ~ next_file()
     
-def set_obstacle():
-    global file_i
-    shutil.copy(files[file_i], os.path.join(DATA.DIR_OBSTACLE, f'ripe_{pad(file_i)}.jpg'))
-    next_file()
+# ~ def set_obstacle():
+    # ~ global file_i
+    # ~ shutil.copy(files[file_i], os.path.join(DATA.DIR_OBSTACLE, f'ripe_{pad(file_i)}.jpg'))
+    # ~ next_file()
 
 # ~ bt_road = tk.Button(root_frame, text='Road', command=set_road)
 # ~ bt_road.pack(side='bottom')
@@ -70,7 +75,7 @@ def set_cat(category_name=None):
     global file_i
     shutil.copy(
         files[file_i],
-        os.path.join(DATA.OUTPUT_DIR, category_name, f'ripe_{pad(file_i)}.jpg')
+        os.path.join(DATA.OUTPUT_DIR, category_name, f'ripe_{pad(file_i+existing_files)}_{gettimestamp()}.jpg')
     )
     next_file()
 categories_callback = {}
@@ -80,6 +85,9 @@ for cat in categories:
     bt_ = tk.Button(root_frame, text=cat, command=partial(set_cat,category_name=cat))
     bt_.pack(side='bottom')
     categories_button[cat] = bt_
+
+bt_skip = tk.Button(root_frame, text="skip this", command=partial(next_file))
+bt_skip.pack(side='bottom')
 
 app.mainloop()
 

@@ -39,7 +39,7 @@ public class MainActivity extends AppCompatActivity
 implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickListener
 {
     public static final String MAKIN = "makin";
-    private static final String MODEL_PATH = "leftright.tflite";
+    private static final String MODEL_PATH = "leftright_2020_03_07_optimized.tflite";
     private static final boolean QUANT = false;
     private static final String LABEL_PATH = "leftright_labels.txt";
     private static final int INPUT_SIZE = 128;
