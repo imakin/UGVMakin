@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.util.Log;
 
 import org.tensorflow.lite.Interpreter;
@@ -241,9 +243,5 @@ public class RoadClassifier {
         }
     }
 
-
-//    public byte makinRoadDetection(Bitmap input) {
-//
-//    }
 }
 

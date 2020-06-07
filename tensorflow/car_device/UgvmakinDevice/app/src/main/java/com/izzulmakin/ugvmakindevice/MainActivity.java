@@ -5,9 +5,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Matrix;
+import android.graphics.Color;
+import android.graphics.Point;
 import android.graphics.Rect;
-import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.method.ScrollingMovementMethod;
@@ -23,14 +23,13 @@ import com.camerakit.CameraKit;
 import com.camerakit.CameraKitView;
 import com.camerakit.CameraKitView.ImageCallback;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-
-import de.mobilej.thinr.Thinr;
 
 import static android.os.SystemClock.elapsedRealtime;
 
@@ -56,7 +55,7 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
     private CameraKitView cameraView;
     private TextView tv_orientation;
 
-    private static boolean is_running = false;
+    private boolean is_running = false;
     private Bitmap segmentedBitmap = null; //croppedBitmap might be cropped again, into 9 segments
     private static final int recognizeSequenceLimit = 10;//makin: counter for recognize attempt, may reset to 0 when reached this limit
     private int recognizeSequence = 0;//makin: counter for recognize attempt, counter reset at certain limit
@@ -69,6 +68,9 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
                                     // each element could be Forward, Left, Right, Stop or Obstacle, Road depends on USE_TURN
     private boolean saveimg = false;
     private String saveimg_id;
+
+
+    private static final boolean USE_MAKINROADDETECTION = true;
 
     private CarDriver car;
 
@@ -105,7 +107,15 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
     public void onImage(CameraKitView cameraKitView, final byte[] capturedImage) {
         // capturedImage contains the image from the CameraKitView.
         Bitmap scaledBitmap = BitmapFactory.decodeByteArray(capturedImage, 0, capturedImage.length);
-/*      final int bw = bitmap.getWidth();
+        if (USE_MAKINROADDETECTION) {
+            makinRoadDetection(scaledBitmap);
+            if (this.is_running) {
+                cameraView.captureImage(this);//loop
+            }
+            return;
+        }
+
+        /*      final int bw = bitmap.getWidth();
         final int bh = bitmap.getHeight();
 
         //scale it
@@ -129,8 +139,6 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
             road[i] = 0;
             road_label[i] = "Stop";
         }
-        // 012
-        // 345
         // 5x2:
         // 01234
         // 56789
@@ -483,4 +491,200 @@ implements ImageCallback,CompoundButton.OnCheckedChangeListener,View.OnClickList
             }
         });
     }
+
+    private static final int mrd_posterizelvl = 70;
+    private int[] mrd_pixels = new int[16*11];
+    //test on my own
+    //640x480 input heavily hardcoded
+    public void makinRoadDetection(Bitmap inputBitmap) {
+        final Bitmap cropped = Bitmap.createBitmap(16, 11, Bitmap.Config.ARGB_8888);
+        Bitmap searchpath = Bitmap.createBitmap(16,11, Bitmap.Config.ARGB_8888);
+        new Canvas(cropped).drawBitmap(
+                inputBitmap,
+                new Rect(0, 0, 640, 440),
+                new Rect(0, 0, 16, 11),
+                null
+        );
+        int[] bottommost_pixels = new int[searchpath.getWidth()];
+        //int color = (A & 0xff) << 24 | (R & 0xff) << 16 | (G & 0xff) << 8 | (B & 0xff);
+        for (int y=0;y<cropped.getHeight();y++) {
+            for (int x=0;x<cropped.getWidth();x++) {
+                int color = cropped.getPixel(x,y);
+                int r = Color.red(color);
+                r = r - (r%mrd_posterizelvl);
+                int g = Color.green(color);
+                g = g - (g%mrd_posterizelvl);
+                int b = Color.blue(color);
+                b = b - (b%mrd_posterizelvl);
+                int avg = (r+g+b)/3;
+                searchpath.setPixel(x,y,Color.argb(255,avg,avg,avg));
+
+                //to get trend in bottommost pixels
+                if (y==(searchpath.getHeight()-1)) {
+                    bottommost_pixels[x] = Color.argb(255,avg,avg,avg);
+                }
+            }
+        }
+
+        final int trend = getMode(bottommost_pixels);
+        int leftmost = searchpath.getWidth(); //the left most x position of pixel that has the trend color
+        int leftmost_y = 0;//y coord of point found in leftmost
+        int rightmost = 0;//the right most x position of pixel that has the trend color
+        int rightmost_y = 0;//y coord of point found in rightmost
+        int topmost = searchpath.getHeight(); //the top most x position of pixel that has the trend  color
+        ArrayDeque<Point> queue = new ArrayDeque<>(16*11);// biggest possible used, size could grows automatically though,
+
+        // Using BREADTH FIRST SEARCH to get the leftmost,rightmost,or topmost point that's connected to the bottom most pixel with color value (trend)
+        int y = searchpath.getHeight() - 1;
+        for (int x = 0; x < searchpath.getWidth(); x++) {
+            int color = searchpath.getPixel(x,y);
+            if (color==trend) {
+                queue.add(new Point(x,y));
+
+                //BREADTH FIRST SEARCH!!!
+                while (!queue.isEmpty()) {
+                    Point p = queue.removeFirst();
+                    int px = p.x;
+                    int py = p.y;
+
+                    if (px<leftmost) {
+                        leftmost = px;
+                        leftmost_y = py;
+                    }
+                    if (px>rightmost) {
+                        rightmost = px;
+                        rightmost_y = py;
+                    }
+                    if (py<topmost) {
+                        topmost = py;
+                    }
+
+                    //mark so that this point won't be searched through again
+                    searchpath.setPixel(px,py,color&0x00ffffff);//mark by clearing alpha channel
+                    //check nearby
+                    if (px>0                        && searchpath.getPixel(px-1,py)==trend) {
+                        queue.add(new Point(px - 1, py));
+                    }
+                    if (px<(searchpath.getWidth()-1)&& searchpath.getPixel(px+1,py)==trend) {
+                        queue.add(new Point(px+1, py));
+                    }
+                    if (py>0                        && searchpath.getPixel(px,py-1)==trend) {
+                        queue.add(new Point(px,py-1));
+                    }
+                    if (py<(searchpath.getHeight()-1)&& searchpath.getPixel(px,py+1)==trend) {
+                        queue.add(new Point(px,py+1));
+                    }
+                }
+            }
+        }
+
+        // steep hill detection
+        boolean speed = false;
+        if (sensorListener.orientation[2] < -1.7) {
+            speed = true;
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (tv_orientation.getText() != "steep hill more power")
+                        tv_orientation.setText("steep hill more power");
+                }
+            });
+        }
+        else {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (tv_orientation.getText()!="flat land normal power")
+                        tv_orientation.setText("flat land normal power");
+                }
+            });
+        }
+
+        //the smaller topmost, the longer available road ahead, the bigger topmost, the shortest available road ahead, AKA obstacle is near
+        // but if topmost is 0, big chance car already hit the obstacle
+        if (topmost==0) {
+            car.stop();
+            car.send();
+        }
+        else if (topmost<9) {
+            //can move forward
+            //leftmost/rightmost get the top position (lower topper)
+            if (leftmost_y<rightmost_y && (rightmost_y-leftmost_y) > 1) {
+                int steer = 15;
+                steer = 15 - (rightmost_y-leftmost_y);
+                if (steer<=0) steer = 3;
+                car.turnLeft(steer);
+            }
+            else if (rightmost_y<leftmost_y && (leftmost_y-rightmost_y) > 1) {
+                int steer = 15;
+                steer = 15 - (leftmost_y-rightmost_y);
+                if (steer<=0) steer = 3;
+                car.turnRight(steer);
+            }
+            else {
+                car.turnCenter();
+            }
+            car.turnCenter();
+            int length = 600;
+            if (topmost>=6) {
+                length = 400;
+            }
+            car.moveStep(length, speed);
+        }
+
+
+        final Bitmap dfspathfinal = searchpath;
+        final int lm = leftmost;
+        final int rm = rightmost;
+        final int lmy = leftmost_y;
+        final int rmy = rightmost_y;
+        final int tm = topmost;
+        String bottommost_pixel_s = "";
+        for (int bi=0;bi< bottommost_pixels.length;bi++) {
+            bottommost_pixel_s += (bottommost_pixels[bi]+" ");
+        }
+        final String bottommost_pixel_s_final = bottommost_pixel_s;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                imageViewResult.setImageBitmap(dfspathfinal);
+                textViewResult.setText(
+                        "trend"+trend+"\n"+
+                        "left: "+lm+" y:"+lmy+"\n"+
+                        "right: "+rm+" y:"+rmy+"\n"+
+                        "top: "+tm+"\n"+
+                        bottommost_pixel_s_final
+                );
+            }
+        });
+    }
+
+    //get most frequent element in array
+    public static int getMode(int []array)
+    {
+        HashMap<Integer,Integer> hm = new HashMap<Integer,Integer>();
+        int max  = 1;
+        int temp = 0;
+
+        for(int i = 0; i < array.length; i++) {
+
+            if (hm.get(array[i]) != null) {
+
+                int count = hm.get(array[i]);
+                count++;
+                hm.put(array[i], count);
+
+                if(count > max) {
+                    max  = count;
+                    temp = array[i];
+                }
+            }
+
+            else
+                hm.put(array[i],1);
+        }
+        return temp;
+    }
+
+
 }

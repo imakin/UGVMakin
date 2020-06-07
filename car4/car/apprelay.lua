@@ -4,7 +4,11 @@ driverIN1 = 1
 driverIN2 = 2
 driverIN3 = 3
 driverIN4 = 4
-
+---
+--- 4WD: IN4 = 0, 2WD: IN4 = 1
+--- SLOW WIRE: IN3 = 0, SLOW WIRE DISCONNECT: IN3 = 1
+--- FORWARD: IN1=0 IN2=1, BACKWARD: IN1=1 IN2=0
+--- STOP: IN1=1 IN2=1
 steeringpwm = 6
 STEER_CENTER = 82
 current_steer = STEER_CENTER
@@ -24,10 +28,10 @@ function car_init()
   gpio.write(driverIN3, 1)
   gpio.write(driverIN4, 1)
   gpio.write(led, 1)
-  
+
   pwm.setup(steeringpwm, 50, STEER_CENTER)
   pwm.start(steeringpwm)
-  
+
 
   return "init"
 end
@@ -42,6 +46,24 @@ function car_steer(d)
   return "t"
 end
 
+--- 4WD: IN4 = 0, 2WD: IN4 = 1
+--- SLOW WIRE: IN3 = 0, SLOW WIRE DISCONNECT: IN3 = 1
+--- FORWARD: IN1=0 IN2=1, BACKWARD: IN1=1 IN2=0
+--- STOP: IN1=1 IN2=1
+-- emergency break
+function car_emergency_break()
+    gpio.write(4,1) --rear only (has metal gear)
+    gpio.write(3,1) --dont use slow wire
+    gpio.write(2,0)
+    gpio.write(1,1)
+    --let it backward for 400ms
+    tmr.delay(500000)
+    -- then stop
+    gpio.write(4,0) --all wheel
+    gpio.write(3,1) --dont use slow wire
+    gpio.write(2,1) 
+    gpio.write(1,1)
+end
 
 function coap_init()
   cs = coap.Server()
@@ -63,26 +85,26 @@ function net_init_udp()
   udpSocket:listen(5000)
   udpSocket:on("receive", function(s, datanum, port, ip)
       --~ print(string.format("'%s' from %s:%d", datanum, ip, port))
-      
+
       if datanum=="test" then
         s:send(port, ip, "ack")
       end
-      
+
       -- 0b 11111111 1111
       -- least significant 4 bit: gpio of relay: bit 3 to 0: IN4 IN3 IN2 IN1
       -- following 8 bits: steering pwm value
-      
+
       local datanum = tonumber(datanum)
       if datanum==nil then
         --~ print("tonumber(message) results in nil")
         return false
       end
-      
+
       gpio.write(driverIN1, (bit.isset(datanum, 0) and 1 or 0))
       gpio.write(driverIN2, (bit.isset(datanum, 1) and 1 or 0))
       gpio.write(driverIN3, (bit.isset(datanum, 2) and 1 or 0))
       gpio.write(driverIN4, (bit.isset(datanum, 3) and 1 or 0))
-      
+
       datanum = bit.rshift(datanum, 4)
       car_steer(datanum)
       return true
@@ -98,25 +120,27 @@ function net_init_http()
       --~ print(payload)
       --~ print("slash n in:")
       --~ print(string.find(payload,' HTTP')) --http packet first line is: GET /path-url HTTP/1.1
-      sck:send("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n<html> <head> <style> button { font-size: 100px; font-family: 'Oxygen Mono', Arial; padding: 40px; } </style> </head> <body> <script> var p = 1359; var steer = 84; var drive = 0b1111; function send() { var newp = (steer<<4) + drive; if (newp!=p) { p = newp; document.location.pathname = '/'+p; } } function l(){ steer = 84-15; send(); } function r(){ steer = 84+15; send(); } function f(){ drive = 2; send(); } function b(){ drive = 1; send(); } </script> <div> <button onclick='l()'>&lt;</button> <button onclick='r()'>&gt;</button> <div> <div> <button onclick='f()'>F</button> <button onclick='b()'>B</button> <div> </body> </html>")
-      
+      --~ sck:send("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n<html> <head> <style> button { font-size: 100px; font-family: 'Oxygen Mono', Arial; padding: 40px; } </style> </head> <body> <script> var p = 1359; var steer = 84; var drive = 0b1111; function send() { var newp = (steer<<4) + drive; if (newp!=p) { p = newp; document.location.pathname = '/'+p; } } function l(){ steer = 84-15; send(); } function r(){ steer = 84+15; send(); } function f(){ drive = 2; send(); } function b(){ drive = 1; send(); } </script> <div> <button onclick='l()'>&lt;</button> <button onclick='r()'>&gt;</button> <div> <div> <button onclick='f()'>F</button> <button onclick='b()'>B</button> <div> </body> </html>")
+      sck:send("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\nmasuk>")
+
       local datanum = tonumber(payload:match("%d+"))
       if datanum==nil then
         --~ print("tonumber(message) results in nil")
         return false
       end
-      
+
       gpio.write(driverIN1, (bit.isset(datanum, 0) and 1 or 0))
       gpio.write(driverIN2, (bit.isset(datanum, 1) and 1 or 0))
       gpio.write(driverIN3, (bit.isset(datanum, 2) and 1 or 0))
       gpio.write(driverIN4, (bit.isset(datanum, 3) and 1 or 0))
-      
+
+      print(bit.band(datanum,15))
       datanum = bit.rshift(datanum, 4)
       print('steer to')
       print(datanum)
       car_steer(datanum)
       return true
-      
+
     end)
     server:on("sent", function(sck) sck:close() end)
   end)
@@ -159,9 +183,11 @@ function remote_init_as_server()
     gpio.write(led, 0)
     print("connected: ")
     print(mac)
-    net_init_http()
+    --~ net_init_http()
+    net_init_udp()
    end
   ssid.stadisconnected_cb = function(mac, aid)
+    car_emergency_break()
     print("disconnected: ")
     print(mac)
   end
