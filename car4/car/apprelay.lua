@@ -9,13 +9,15 @@ driverIN4 = 4
 --- SLOW WIRE: IN3 = 0, SLOW WIRE DISCONNECT: IN3 = 1
 --- FORWARD: IN1=0 IN2=1, BACKWARD: IN1=1 IN2=0
 --- STOP: IN1=1 IN2=1
-steeringpwm = 6
+steeringpwm_pin = 6
 STEER_CENTER = 82
 current_steer = STEER_CENTER
 
 cs = "coapserver"
 udpSocket = "udpsocket"
 tcpsocket = "tcpsocket"
+
+clients_connected = 0
 
 function car_init()
   gpio.mode(driverIN1, gpio.OUTPUT)
@@ -29,8 +31,8 @@ function car_init()
   gpio.write(driverIN4, 1)
   gpio.write(led, 1)
 
-  pwm.setup(steeringpwm, 50, STEER_CENTER)
-  pwm.start(steeringpwm)
+  pwm.setup(steeringpwm_pin, 50, STEER_CENTER)
+  pwm.start(steeringpwm_pin)
 
 
   return "init"
@@ -41,9 +43,30 @@ end
 --**
 function car_steer(d)
   local steerint = tonumber(d)
-  pwm.setduty(steeringpwm, steerint)
+  pwm.setduty(steeringpwm_pin, steerint)
   current_steer = steerint
   return "t"
+end
+
+function car_stop()
+  -- then stop
+  gpio.write(4,0) --all wheel
+  gpio.write(3,1) --dont use slow wire
+  gpio.write(2,1) 
+  gpio.write(1,1)
+end
+
+function car_forward()
+  gpio.write(4,0) --all wheel
+  gpio.write(3,1) --dont use slow wire
+  gpio.write(2,1)
+  gpio.write(1,0)
+end
+function car_backward()
+  gpio.write(4,0) --all wheel
+  gpio.write(3,1) --dont use slow wire
+  gpio.write(2,0)
+  gpio.write(1,1)
 end
 
 --- 4WD: IN4 = 0, 2WD: IN4 = 1
@@ -52,18 +75,27 @@ end
 --- STOP: IN1=1 IN2=1
 -- emergency break
 function car_emergency_break()
-    gpio.write(4,1) --rear only (has metal gear)
-    gpio.write(3,1) --dont use slow wire
-    gpio.write(2,0)
-    gpio.write(1,1)
-    --let it backward for 400ms
-    tmr.delay(500000)
-    -- then stop
-    gpio.write(4,0) --all wheel
-    gpio.write(3,1) --dont use slow wire
-    gpio.write(2,1) 
-    gpio.write(1,1)
+  gpio.write(4,1) --rear only (has metal gear)
+  gpio.write(3,1) --dont use slow wire
+  gpio.write(2,0)
+  gpio.write(1,1)
+  --let it backward for 400ms
+  tmr.delay(500000)
+  -- then stop
+  gpio.write(4,0) --all wheel
+  gpio.write(3,1) --dont use slow wire
+  gpio.write(2,1) 
+  gpio.write(1,1)
 end
+
+car_emergency_break_timer = tmr.create()
+car_emergency_break_timer:register(
+  700, -- call emergency timer this seconds after triggered
+  tmr.ALARM_SEMI,
+  function(tmrobj)
+    car_emergency_break()
+  end
+)
 
 function coap_init()
   cs = coap.Server()
@@ -99,11 +131,16 @@ function net_init_udp()
         --~ print("tonumber(message) results in nil")
         return false
       end
-
+      car_emergency_break_timer:stop()
+      -- (check bit, check if it is HIGH, and cast to boolean)
       gpio.write(driverIN1, (bit.isset(datanum, 0) and 1 or 0))
       gpio.write(driverIN2, (bit.isset(datanum, 1) and 1 or 0))
       gpio.write(driverIN3, (bit.isset(datanum, 2) and 1 or 0))
       gpio.write(driverIN4, (bit.isset(datanum, 3) and 1 or 0))
+      if ((bit.isset(datanum, 0)==false) and (bit.isset(datanum, 1))) then
+        car_emergency_break_timer:start()
+      end
+      
 
       datanum = bit.rshift(datanum, 4)
       car_steer(datanum)
@@ -184,7 +221,11 @@ function remote_init_as_server()
     print("connected: ")
     print(mac)
     --~ net_init_http()
-    net_init_udp()
+    if (clients_connected==0) then
+      net_init_udp()
+    end
+    clients_connected = clients_connected + 1
+    
    end
   ssid.stadisconnected_cb = function(mac, aid)
     car_emergency_break()
@@ -196,3 +237,12 @@ end
 
 car_init()
 remote_init_as_server()
+
+api = {}
+api.steer = car_steer
+api.emergency_break = car_emergency_break
+api.emergency_break_timer = car_emergency_break_timer
+api.forward = car_forward
+api.backward = car_backward
+api.stop = car_stop
+return api

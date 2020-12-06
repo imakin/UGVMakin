@@ -380,7 +380,7 @@ _G.wifi_connected_cb = function(ssid, bssid, channel)
     starter:register(3000, tmr.ALARM_SEMI, check_button)
     starter:start()
 end
-_G.initremote = function()
+_G.init_remote = function()
     gpio.mode(led,          gpio.OUTPUT)
     gpio.write(led, 0)
     wifi.setmode(wifi.STATION)
@@ -399,4 +399,4 @@ _G.initremote = function()
 end
 
 
-_G.initremote()
+_G.init_remote()

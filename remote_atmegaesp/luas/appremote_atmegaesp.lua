@@ -4,32 +4,41 @@ bt_right = 6
 bt_left = 7
 bt_forward = 5
 bt_backward = 0
+gpio.mode(bt_right,     gpio.INPUT, gpio.PULLUP)
+gpio.mode(bt_left,      gpio.INPUT, gpio.PULLUP)
+gpio.mode(bt_forward,   gpio.INPUT, gpio.PULLUP)
+gpio.mode(bt_backward,  gpio.INPUT, gpio.PULLUP)
 
-joystick_1_select = 0
-joystick_2_select = 1
-joystick_1_bt = 3 -- 1nd joystick switch on D3, external pull-down
-joystick_2_bt = 2 -- 2nd joystick switch on D2, external floating, internal pull-up
+--old joystick
+--~ joystick_1_select = 0
+--~ joystick_2_select = 1
+--~ joystick_1_bt = 3 -- 1nd joystick switch on D3, external pull-down
+--~ joystick_2_bt = 2 -- 2nd joystick switch on D2, external floating, internal pull-up
 
-_G.udpsocket = 0
+--~ _G.udpsocket = 0
 
 car_net_ip = "192.168.4.1"
 car_net_port = 5000
 
 --~ steer_center = 80
-steer_center = 85
+_G.steer_center = 87
 current_steer = steer_center
+steer_distance = -8 --the distance of the steering, negative for invert direction
 current_direction = 1
 default_speed = 1
 current_speed = default_speed
 current_relay = 15 -- gpio condition that drive relay
 
-_G.timer_last_forward = 0
+-- if data to be send was never changed, we will not send it repeatedly,
+-- except if (timer_last_sending_limit) amount of time has passed
+_G.timer_last_sending = 0
+timer_last_sending_limit = 500*1000 --maximum time passed before sending the same data again, in microsec
 _G.timer_last_speed_changed = 0
 
 direction_adjust_right_delay_ms = 250 -- time to trigger adjust dir
 direction_adjust_left_delay_ms = 260 -- duration of adjust dir
-direction_adjust_right_steer = 85
-direction_adjust_left_steer = 85
+direction_adjust_right_steer = 87
+direction_adjust_left_steer = 87
 
   -- 0b 11111111 1111
   -- least significant 4 bit: gpio of relay: bit 3 to 0: IN4 IN3 IN2 IN1
@@ -94,58 +103,26 @@ _G.check_button = function(starterobject)
     else
         starterobject:unregister()
     end
-    gpio.mode(bt_right,     gpio.INPUT, gpio.PULLUP)
-    gpio.mode(bt_left,      gpio.INPUT, gpio.PULLUP)
-    gpio.mode(bt_forward,   gpio.INPUT, gpio.PULLUP)
-    gpio.mode(bt_backward,  gpio.INPUT, gpio.PULLUP)
 
-    _G.udpsocket = net.createUDPSocket()
-    _G.udpsocket:on("receive", function(s,d,p,i)
-        if d=="ack" then
-            gpio.write(led, 0)
-        end
-        print(d)
-    end)
+    if _G.udpsocket==nil then
+        print("UDP socket make new")
+        _G.udpsocket = net.createUDPSocket()
+        _G.udpsocket:on("receive", function(s,d,p,i)
+            if d=="ack" then
+                gpio.write(led, 0)
+            end
+            print(d)
+        end)
+    end
+    
     _G.udpsocket:send(car_net_port, broadcast_ip, "test")
     buttonlistener = tmr.create()
     buttonlistener:register(100, tmr.ALARM_AUTO, function()
 
         if (gpio.read(bt_left)==0) then
-            if gpio.read(bt_right)==0 and (tmr.now() - timer_last_speed_changed)>700000  then
-                _G.timer_last_speed_changed = tmr.now()
-                default_speed = default_speed + 1
-                if default_speed>3 then
-                    default_speed = 0
-                end
-                --~ print("default speed updated " .. default_speed)
-            end
-            if (gpio.read(bt_forward)==0) then
-                if current_speed==3 then
-                    current_steer = steer_center + 15 ---2WD H kecill setirnya
-                elseif current_speed==2 then
-                    current_steer = steer_center + 15 --- 2WD L
-                elseif current_speed==1 then
-                    current_steer = steer_center + 15 ---4WD H
-                else
-                    current_steer = steer_center + 15 ---4WD L
-                end
-            else
-                current_steer = steer_center + 15
-            end
+            current_steer = steer_center + steer_distance
         elseif (gpio.read(bt_right)==0) then
-            if (gpio.read(bt_forward)==0) then
-                if current_speed==3 then
-                    current_steer = steer_center - 15 --kecil setirnya
-                elseif current_speed==2 then
-                    current_steer = steer_center - 15
-                elseif current_speed==1 then
-                    current_steer = steer_center - 15
-                else
-                    current_steer = steer_center - 15
-                end
-            else
-                current_steer = steer_center - 15
-            end
+            current_steer = steer_center - steer_distance
         else
             current_steer = steer_center
         end
@@ -155,13 +132,6 @@ _G.check_button = function(starterobject)
 
         data = 0
         if (gpio.read(bt_forward)==0) then
-
-            if gpio.read(bt_backward)==0 and (tmr.now() - timer_last_speed_changed)>300000 then --half second length to consider as double click
-                if current_speed<3 then
-                    _G.timer_last_speed_changed = tmr.now()
-                    current_speed = current_speed + 1
-                end
-            end
             direction_adjust_timer:start()
             -- in ../../ (4wd) direction is 3 2, speed is 1 0
             -- here position speed is 3 2, direction is 1 0
@@ -179,7 +149,6 @@ _G.check_button = function(starterobject)
             
             --~ -- 4wd: no speed
             --~ data = 10
-            _G.timer_last_forward = tmr.now()
         elseif (gpio.read(bt_backward)==0) then
             -- in ../../ (4wd) direction is 3 2, speed is 1 0
             -- here position speed is 3 2, direction is 1 0
@@ -209,32 +178,39 @@ _G.check_button = function(starterobject)
         data = bit.band(data, data_mask)
         current_relay = data
         data = data + current_steer
-
-        if not (data==last_data) then
+        
+        if (
+            (not (data==last_data)) or
+            ((tmr.now() - _G.timer_last_sending) > timer_last_sending_limit)
+        )then
             _G.udpsocket:send(car_net_port, broadcast_ip, tostring(data))
             --~ print("sending " .. tostring(data))
             last_data = data
             _G.data = data
+            _G.timer_last_sending = tmr.now()
         end
     end)
     buttonlistener:start()
 end
 
+starter = tmr.create()
+starter:register(3000, tmr.ALARM_SEMI, check_button)
+runremote = function()
+    starter:start()
+end
 
 _G.wifi_connected_cb = function(ssid, bssid, channel)
     print("nyambung")
     gpio.write(led, 1)
 
     stop_checking_button = false
-    starter = tmr.create()
-    starter:register(3000, tmr.ALARM_SEMI, check_button)
-    starter:start()
+    runremote()
 end
-_G.initremote = function()
+_G.init_remote = function()
     gpio.mode(led,          gpio.OUTPUT)
     gpio.write(led, 0)
     wifi.setmode(wifi.STATION)
-    --~ wifi.setphymode(wifi.PHYMODE_B)
+    wifi.setphymode(wifi.PHYMODE_B)
     ssid = {}
     ssid.ssid = "ugvmakin"
     ssid.pwd = "astaughfirullah"
@@ -249,4 +225,9 @@ _G.initremote = function()
 end
 
 
-_G.initremote()
+--~ _G.init_remote()
+remote = {}
+remote.init_remote = init_remote
+remote.check_button = check_button
+remote.run_remote = run_remote
+return remote
