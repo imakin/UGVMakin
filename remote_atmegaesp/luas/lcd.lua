@@ -60,7 +60,7 @@ local function home()
  rs=oldrs
 end
 
-
+--col starts from 0, but line starts from 1 i.e. 1 and 2
 local function lcdprint (str,line,col)
 if (type(str) =="number") then
  str = tostring(str)
@@ -80,18 +80,29 @@ for i = 1, #str do
 end
 
 end
+--add spaces so that this string has 16 characters
+function makeline(str)
+   local l = string.len(str)
+   if (l<16) then
+      d = 16 - l
+      return str..string.rep(" ",d)
+   else
+      return str
+   end
+end
+
 function logprint(str)
    if (_G.DEBUG) then
       print(str)
    end
-   cls()
-   lcdprint(str,1,0)
+   lcdprint(makeline(str),1,0)
 end
 
 M={
 lcdprint=lcdprint,
 logprint=logprint,
 printlog=logprint,
+makeline=makeline,
 cls = cls,
 home=home,
 cursor=cursor,

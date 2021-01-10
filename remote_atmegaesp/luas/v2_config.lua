@@ -13,9 +13,11 @@ gpio.mode(config.bt_backward,  gpio.INPUT, gpio.PULLUP)
 config.car_net_ip = "192.168.4.1"
 config.car_net_port = 5000
 config.broadcast_ip = "192.168.4.255"
-config.steer_center = 87
+config.steer_center_car5 = 90--big car
+config.steer_center = 85--smallcar
 config.current_steer = config.steer_center
-config.steer_distance = -8 --the distance of the steering, negative for invert direction
+config.steer_distance_car5 = -16 --the distance of the steering, negative for invert direction -16 big car
+config.steer_distance = 12 --the distance of the steering, negative for invert direction 8 small car
 config.current_direction = 1
 config.default_speed = 1
 config.current_speed = config.default_speed
@@ -24,7 +26,7 @@ config.current_relay = 15 -- gpio condition that drive relay
 -- if data to be send was never changed, we will not send it repeatedly,
 -- except if (timer_last_sending_limit) amount of time has passed
 config.timer_last_sending = 0
-config.timer_last_sending_limit = 500*1000 --maximum time passed before sending the same data again, in microsec
+config.timer_last_sending_limit = 200*1000 --maximum time passed before sending the same data again, in microsec
 config.timer_last_speed_changed = 0
 
 config.direction_adjust_right_delay_ms = 250 -- time to trigger adjust dir

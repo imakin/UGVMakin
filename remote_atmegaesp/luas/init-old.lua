@@ -5,7 +5,7 @@ function startup_remote()
     else
         print("Running remote")
         file.close("init.lua")
-        remote = dofile("appremote_atmegaesp.lua")
+        remote = dofile("v2_app.lua")
         remote.init_remote()
     end
 end

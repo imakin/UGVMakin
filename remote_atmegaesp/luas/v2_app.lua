@@ -6,17 +6,56 @@ listen_button_loop = tmr.create()
 last_data = 0
 _G.timer_last_sending = tmr.now()
 
+make_steer_data = function(steer, relay)
+    -- current steer in data-ready bit position
+    steer = bit.lshift(steer,4)
+    relay = bit.band(relay,config.data_mask)
+    relay = relay+steer
+    return relay
+end
+if config.steer_distance>0 then
+    steer_max = config.steer_center + config.steer_distance
+    steer_min = config.steer_center - config.steer_distance
+else
+    steer_max = config.steer_center - config.steer_distance
+    steer_min = config.steer_center + config.steer_distance
+end
+steer_min = config.steer_center - config.steer_distance
 listen_button_step = function()
     if (gpio.read(config.bt_left)==0) then
-        current_steer = config.steer_center + config.steer_distance
+        -- aslinya cuma current_steer = config.steer_center + config.steer_distance
+        -- kalau config.steer_distance positive current steer bertambah
+        -- kalau config.steer_distance negative current steer berkurang
+        if (config.steer_distance>0) then
+            if (current_steer<steer_max) then
+                -- config.steer_distance positive
+                -- tombol kiri dipencet, ekspektasi steer++ selama kurang dr steer_max
+                current_steer = current_steer + 1
+            end
+        else
+            if (current_steer>steer_min) then
+                -- config.steer_distance negative
+                -- tombol kiri dipencet, ekspektasi steer-- selama lebih dr steer_min
+                current_steer = current_steer - 1
+            end
+        end
     elseif (gpio.read(config.bt_right)==0) then
-        current_steer = config.steer_center - config.steer_distance
+        -- aslinya cuma current_steer = config.steer_center - config.steer_distance
+        -- kalau config.steer_distance positive current steer berkurang
+        -- kalau config.steer_distance negative current steer bertambah
+        if config.steer_distance<0 then
+            if currrent_steer<steer_max then
+                current_steer = current_steer + 1
+            end
+        else
+            if current_steer>steer_min then
+                current_steer = current_steer - 1
+            end
+        end
     else
         current_steer = config.steer_center
     end
 
-    -- current steer in data-ready bit position
-    current_steer = bit.lshift(current_steer, 4)
 
     --forward direction
     if (gpio.read(config.bt_forward)==0) then
@@ -31,9 +70,7 @@ listen_button_step = function()
         --direction_adjust_timer:stop()
     end
 
-    data = bit.band(data, config.data_mask)
-    data = data + current_steer
-    _G.data = data
+    _G.data = make_steer_data(current_steer,data)
     if (
         (not (data==last_data)) or
         ((tmr.now() - _G.timer_last_sending) > config.timer_last_sending_limit)

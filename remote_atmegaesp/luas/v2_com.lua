@@ -3,16 +3,20 @@
 -- get() the communication object, singleton
 -- send
 m = {}
+m.ack_info = ""
+_G.ack_info = ""
 ready = false
 m.init = function()
     if _G.com_net==nil then
         lcd.logprint("UDP make new")
         _G.com_net = net.createUDPSocket()
         _G.com_net:on("receive", function(s,d,p,i)
-            if d=="ack" then
+            m.ack_info = d
+            _G.ack_info = d
+            if d:match("ack")=="ack" then
                 ready = true
                 gpio.write(config.led, 0)
-                lcd.logprint("car ACK")
+                lcd.logprint("carACK"..d)
             end
             print(d)
         end)
