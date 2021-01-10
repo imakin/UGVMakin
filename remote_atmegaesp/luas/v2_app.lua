@@ -27,16 +27,22 @@ listen_button_step = function()
         -- kalau config.steer_distance positive current steer bertambah
         -- kalau config.steer_distance negative current steer berkurang
         if (config.steer_distance>0) then
+            if current_steer<config.steer_center then
+                current_steer = config.steer_center
+            end
             if (current_steer<steer_max) then
                 -- config.steer_distance positive
                 -- tombol kiri dipencet, ekspektasi steer++ selama kurang dr steer_max
-                current_steer = current_steer + 1
+                current_steer = current_steer + 2
             end
         else
+            if current_steer>config.steer_center then
+                current_steer = config.steer_center
+            end
             if (current_steer>steer_min) then
                 -- config.steer_distance negative
                 -- tombol kiri dipencet, ekspektasi steer-- selama lebih dr steer_min
-                current_steer = current_steer - 1
+                current_steer = current_steer - 2
             end
         end
     elseif (gpio.read(config.bt_right)==0) then
@@ -44,12 +50,18 @@ listen_button_step = function()
         -- kalau config.steer_distance positive current steer berkurang
         -- kalau config.steer_distance negative current steer bertambah
         if config.steer_distance<0 then
+            if current_steer<config.steer_center then
+                current_steer = config.steer_center
+            end
             if currrent_steer<steer_max then
-                current_steer = current_steer + 1
+                current_steer = current_steer + 2
             end
         else
+            if current_steer>config.steer_center then
+                current_steer = config.steer_center
+            end
             if current_steer>steer_min then
-                current_steer = current_steer - 1
+                current_steer = current_steer - 2
             end
         end
     else
