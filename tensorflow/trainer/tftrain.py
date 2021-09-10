@@ -8,6 +8,11 @@ import os
 from sys import argv
 
 print("use: trfrain.py training_folder_path output_model_prefixname")
+print("e.g: python tftrain.py dataimg/batch6_2020_03_05_house/s2_ripe/ tes20210114")
+print("where s2_ripe/ contains folder in hierarchy:" )
+print(" subfolder = label")
+print("   label1/[imgs..].jpg")
+print("   label2/[imgs..].jpg")
 argv[1]
 RESULT_PREFIXNAME = argv[2]
 pd.set_option("display.precision", 8)
@@ -15,7 +20,7 @@ pd.set_option("display.precision", 8)
 IMAGE_SHAPE = (128,128)
 TRAINING_DATA_DIR = argv[1]
 
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 EPOCH = 40
 TOTAL_DATA_FOR_TRAINING = 85 #percentage of data used for training, the rest is for validation
 validation_split_ = (100-TOTAL_DATA_FOR_TRAINING)/100

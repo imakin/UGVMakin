@@ -1,0 +1,7 @@
+filename,width,height,class,xmin,ymin,xmax,ymax
+hill.png,640,480,tree,410,120,537,222
+hill.png,640,480,road,281,245,498,417
+hill.png,640,480,road,512,246,640,417
+hill.png,640,480,road,1,245,271,425
+hill.png,640,480,wall,1,130,233,242
+hill.png,640,480,wall,246,56,408,228
